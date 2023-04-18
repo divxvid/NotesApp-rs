@@ -14,7 +14,6 @@ use user_routes::*;
 pub async fn get_router() -> Router {
     Router::new()
         .route("/", get(root_route))
-        .route("/user", get(get_user))
         .route("/signup", post(handle_signup))
         .route("/login", post(handle_login))
         .route(
