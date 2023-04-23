@@ -37,6 +37,7 @@ pub async fn construct_state() -> Result<ServerState, Box<dyn Error>> {
         ClientOptions::parse_with_resolver_config(&mongo_uri, ResolverConfig::cloudflare()).await?;
     let client = Client::with_options(options)?;
     let db = client.database("test");
+    println!("Connected to DB Successfully!");
 
     Ok(ServerState { db })
 }

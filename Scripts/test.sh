@@ -3,7 +3,7 @@
 echo -e "Testing POST /signup"
 curl --header "Content-Type: application/json" \
 	--request POST \
-	--data '{"username":"test_username", "password": "pass123"}' \
+	--data '{"username":"Rust_is_OP", "password": "CrabLangLuL"}' \
 	http://localhost:3000/signup
 
 echo -e "\n\nTesting POST /login"

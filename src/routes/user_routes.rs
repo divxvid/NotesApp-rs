@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{data_models::UserPass, server_state::ServerState};
@@ -15,10 +15,12 @@ pub struct UserResponse {
     username: String,
 }
 
+// Make sure the order of extractors is okay
+// link: https://docs.rs/axum/latest/axum/extract/index.html#the-order-of-extractors
 pub async fn handle_signup(
-    Json(body): Json<UserInformation>,
     State(state): State<ServerState>,
-) -> impl IntoResponse {
+    Json(body): Json<UserInformation>,
+) -> Result<Json<UserResponse>, StatusCode> {
     let collection = state.db.collection::<UserPass>("userpasses");
     let new_entry = UserPass {
         username: body.username.clone(),
