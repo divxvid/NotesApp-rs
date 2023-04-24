@@ -15,6 +15,11 @@ pub struct UserResponse {
     username: String,
 }
 
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    message: String,
+}
+
 // Make sure the order of extractors is okay
 // link: https://docs.rs/axum/latest/axum/extract/index.html#the-order-of-extractors
 pub async fn handle_signup(
@@ -22,7 +27,7 @@ pub async fn handle_signup(
     Json(body): Json<UserInformation>,
 ) -> impl IntoResponse {
     body.validate()
-        .map_err(|msg| (StatusCode::BAD_REQUEST, msg))?;
+        .map_err(|message| (StatusCode::BAD_REQUEST, Json(ErrorResponse { message })))?;
 
     let collection = state.db.collection::<UserPass>("userpasses");
     let new_entry = UserPass {
@@ -45,7 +50,9 @@ pub async fn handle_signup(
             eprintln!("An Error Occured at handle_signup:\n {:?}", err);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Error encountered while creating user in db".to_owned(),
+                Json(ErrorResponse {
+                    message: "Error encountered while creating user in db".to_owned(),
+                }),
             ))
         }
     }
@@ -61,11 +68,17 @@ pub async fn handle_login(Json(body): Json<UserInformation>) -> Json<UserRespons
 }
 
 impl UserInformation {
-    //this will validate one at a time. If one of the checks fail, it bails out
     fn validate(&self) -> Result<(), String> {
-        self.validate_username()?;
-        self.validate_password()?;
-        Ok(())
+        let error_messages = [self.validate_username(), self.validate_password()]
+            .iter()
+            .cloned()
+            .filter_map(|x| x.err())
+            .collect::<Vec<String>>();
+
+        match error_messages.is_empty() {
+            true => Ok(()),
+            false => Err(error_messages.join(", ")),
+        }
     }
 
     fn validate_username(&self) -> Result<(), String> {
