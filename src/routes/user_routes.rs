@@ -1,4 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use bson::doc;
+use mongodb::Collection;
 use serde::{Deserialize, Serialize};
 
 use crate::{data_models::UserPass, server_state::ServerState};
@@ -26,10 +28,9 @@ pub async fn handle_signup(
     State(state): State<ServerState>,
     Json(body): Json<UserInformation>,
 ) -> impl IntoResponse {
-    body.validate()
-        .map_err(|message| (StatusCode::BAD_REQUEST, Json(ErrorResponse { message })))?;
-
     let collection = state.db.collection::<UserPass>("userpasses");
+    validate_signup_request(&body, &collection).await?;
+
     let new_entry = UserPass {
         username: body.username.clone(),
         password: body.password,
@@ -65,6 +66,40 @@ pub async fn handle_login(Json(body): Json<UserInformation>) -> Json<UserRespons
     };
 
     Json(resp)
+}
+
+async fn validate_signup_request(
+    body: &UserInformation,
+    collection: &Collection<UserPass>,
+) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
+    body.validate()
+        .map_err(|message| (StatusCode::BAD_REQUEST, Json(ErrorResponse { message })))?;
+
+    let res = collection
+        .find_one(doc! { "username": body.username.clone() }, None)
+        .await;
+    match res {
+        Ok(x) => match x {
+            Some(_) => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        message: format!("Username: {} already exists!", body.username),
+                    }),
+                ))
+            }
+            None => Ok(()),
+        },
+        Err(err) => {
+            eprintln!("An Error Occured at handle_signup:\n {:?}", err);
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "Error encountered while checking username in db".to_owned(),
+                }),
+            ));
+        }
+    }
 }
 
 impl UserInformation {
