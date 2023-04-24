@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{data_models::UserPass, server_state::ServerState};
@@ -20,7 +20,12 @@ pub struct UserResponse {
 pub async fn handle_signup(
     State(state): State<ServerState>,
     Json(body): Json<UserInformation>,
-) -> Result<Json<UserResponse>, StatusCode> {
+) -> impl IntoResponse {
+    match body.validate() {
+        Ok(_) => (),
+        Err(msg) => return Err((StatusCode::BAD_REQUEST, msg)),
+    }
+
     let collection = state.db.collection::<UserPass>("userpasses");
     let new_entry = UserPass {
         username: body.username.clone(),
@@ -40,7 +45,10 @@ pub async fn handle_signup(
         }
         Err(err) => {
             eprintln!("An Error Occured at handle_signup:\n {:?}", err);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error encountered while creating user in db".to_owned(),
+            ))
         }
     }
 }
@@ -52,4 +60,27 @@ pub async fn handle_login(Json(body): Json<UserInformation>) -> Json<UserRespons
     };
 
     Json(resp)
+}
+
+impl UserInformation {
+    //this will validate one at a time. If one of the checks fail, it bails out
+    fn validate(&self) -> Result<(), String> {
+        self.validate_username()?;
+        self.validate_password()?;
+        Ok(())
+    }
+
+    fn validate_username(&self) -> Result<(), String> {
+        if self.username.is_empty() {
+            return Err("Username cannot be Empty".to_owned());
+        }
+        Ok(())
+    }
+
+    fn validate_password(&self) -> Result<(), String> {
+        if self.password.is_empty() {
+            return Err("Password cannot be Empty".to_owned());
+        }
+        Ok(())
+    }
 }
