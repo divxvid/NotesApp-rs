@@ -21,10 +21,8 @@ pub async fn handle_signup(
     State(state): State<ServerState>,
     Json(body): Json<UserInformation>,
 ) -> impl IntoResponse {
-    match body.validate() {
-        Ok(_) => (),
-        Err(msg) => return Err((StatusCode::BAD_REQUEST, msg)),
-    }
+    body.validate()
+        .map_err(|msg| (StatusCode::BAD_REQUEST, msg))?;
 
     let collection = state.db.collection::<UserPass>("userpasses");
     let new_entry = UserPass {
