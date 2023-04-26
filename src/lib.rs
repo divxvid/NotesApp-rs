@@ -1,3 +1,4 @@
+mod auth;
 mod data_models;
 mod routes;
 mod server_state;
