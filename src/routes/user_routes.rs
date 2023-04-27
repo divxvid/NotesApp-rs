@@ -105,16 +105,12 @@ pub async fn handle_login(
         );
     })?;
 
-    let cookie = Cookie::build("token", jwt_token)
+    let cookie = Cookie::build("access_token", jwt_token)
         .path("/")
         .max_age(Duration::hours(1))
         .http_only(true)
         .finish();
 
-    // let resp = UserResponse {
-    //     message: "Login Stub Message from Axum".to_owned(),
-    //     username: body.username,
-    // };
     let response = Response::builder()
         .status(StatusCode::OK)
         .header(SET_COOKIE, cookie.to_string())
