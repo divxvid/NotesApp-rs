@@ -1,9 +1,16 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    extract::State,
+    http::{header::SET_COOKIE, Response, StatusCode},
+    response::IntoResponse,
+    Json,
+};
+use axum_extra::extract::cookie::Cookie;
 use bson::doc;
 use mongodb::Collection;
 use serde::{Deserialize, Serialize};
+use time::Duration;
 
-use crate::{data_models::UserPass, server_state::ServerState};
+use crate::{auth::get_token, data_models::UserPass, server_state::ServerState};
 
 #[derive(Deserialize)]
 pub struct UserInformation {
@@ -59,13 +66,62 @@ pub async fn handle_signup(
     }
 }
 
-pub async fn handle_login(Json(body): Json<UserInformation>) -> Json<UserResponse> {
-    let resp = UserResponse {
-        message: "Login Stub Message from Axum".to_owned(),
-        username: body.username,
-    };
+pub async fn handle_login(
+    State(state): State<ServerState>,
+    Json(body): Json<UserInformation>,
+) -> impl IntoResponse {
+    let collection = state.db.collection::<UserPass>("userpasses");
 
-    Json(resp)
+    let db_result = collection
+        .find_one(doc! { "username": body.username.clone() }, None)
+        .await
+        .map_err(|err| {
+            eprint!("Error encountered in reading Collection userpasses from /login\n{err}",);
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "Error occured while reading from db".to_owned(),
+                }),
+            );
+        })?;
+
+    let db_result = db_result.unwrap_or(UserPass::default());
+    if body.password != db_result.password {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                message: "Invalid Credentials!".to_owned(),
+            }),
+        ));
+    }
+
+    let jwt_token = get_token(&body.username).map_err(|err| {
+        eprintln!("Error occured at JWT creation.\n{err}");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                message: "Error generating JWT token".to_owned(),
+            }),
+        );
+    })?;
+
+    let cookie = Cookie::build("token", jwt_token)
+        .path("/")
+        .max_age(Duration::hours(1))
+        .http_only(true)
+        .finish();
+
+    // let resp = UserResponse {
+    //     message: "Login Stub Message from Axum".to_owned(),
+    //     username: body.username,
+    // };
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(SET_COOKIE, cookie.to_string())
+        .body("Login Successful!".to_string())
+        .unwrap();
+
+    Ok(response)
 }
 
 async fn validate_signup_request(

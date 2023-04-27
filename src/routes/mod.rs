@@ -13,7 +13,7 @@ use mongodb::{
     options::{ClientOptions, ResolverConfig},
     Client,
 };
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use note_routes::*;
 use root_route::root_route;
@@ -44,8 +44,15 @@ pub async fn construct_state() -> Result<ServerState, Box<dyn Error>> {
 
 pub async fn get_router() -> Result<Router, Box<dyn Error>> {
     let cors_layer = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::DELETE])
-        .allow_origin(AllowOrigin::mirror_request());
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::HEAD,
+        ])
+        .allow_origin(AllowOrigin::mirror_request())
+        .allow_credentials(true);
 
     let state = construct_state().await?;
 
