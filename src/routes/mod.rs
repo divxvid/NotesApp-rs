@@ -13,7 +13,11 @@ use mongodb::{
     options::{ClientOptions, ResolverConfig},
     Client,
 };
-use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
+use tower_http::{
+    cors::{AllowHeaders, AllowOrigin, CorsLayer},
+    trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 
 use note_routes::*;
 use root_route::root_route;
@@ -55,6 +59,11 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
         .allow_headers(AllowHeaders::mirror_request())
         .allow_credentials(true);
 
+    let trace_layer = TraceLayer::new_for_http()
+        .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_response(DefaultOnResponse::new().level(Level::INFO))
+        .on_failure(DefaultOnFailure::new().level(Level::ERROR));
+
     let state = construct_state().await?;
 
     let router = Router::new()
@@ -68,6 +77,7 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
         )
         .route("/notes", get(get_all_notes))
         .route("/notes", post(add_note))
+        .layer(trace_layer)
         .layer(cors_layer)
         .with_state(state);
 
