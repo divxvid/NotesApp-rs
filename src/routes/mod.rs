@@ -61,6 +61,7 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
         .route("/", get(root_route))
         .route("/signup", post(handle_signup))
         .route("/login", post(handle_login))
+        .route("/logout", get(handle_logout))
         .route(
             "/notes/:id",
             get(get_note_with_id).delete(delete_note_with_id),
