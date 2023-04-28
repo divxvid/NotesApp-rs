@@ -10,7 +10,7 @@ use mongodb::Collection;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 
-use crate::{auth::get_token, data_models::UserPass, server_state::ServerState};
+use crate::{auth::get_token, data_models::UserPassModel, server_state::ServerState};
 
 #[derive(Deserialize)]
 pub struct UserInformation {
@@ -35,10 +35,10 @@ pub async fn handle_signup(
     State(state): State<ServerState>,
     Json(body): Json<UserInformation>,
 ) -> impl IntoResponse {
-    let collection = state.db.collection::<UserPass>("userpasses");
+    let collection = state.db.collection::<UserPassModel>("userpasses");
     validate_signup_request(&body, &collection).await?;
 
-    let new_entry = UserPass {
+    let new_entry = UserPassModel {
         username: body.username.clone(),
         password: body.password,
     };
@@ -70,7 +70,7 @@ pub async fn handle_login(
     State(state): State<ServerState>,
     Json(body): Json<UserInformation>,
 ) -> impl IntoResponse {
-    let collection = state.db.collection::<UserPass>("userpasses");
+    let collection = state.db.collection::<UserPassModel>("userpasses");
 
     let db_result = collection
         .find_one(doc! { "username": body.username.clone() }, None)
@@ -85,7 +85,7 @@ pub async fn handle_login(
             );
         })?;
 
-    let db_result = db_result.unwrap_or(UserPass::default());
+    let db_result = db_result.unwrap_or(UserPassModel::default());
     if body.password != db_result.password {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -122,7 +122,7 @@ pub async fn handle_login(
 
 async fn validate_signup_request(
     body: &UserInformation,
-    collection: &Collection<UserPass>,
+    collection: &Collection<UserPassModel>,
 ) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
     body.validate()
         .map_err(|message| (StatusCode::BAD_REQUEST, Json(ErrorResponse { message })))?;
