@@ -32,3 +32,7 @@ echo -e "\n-----------------------------------------------"
 echo -e "\n\nTesting DELETE /notes/:id"
 curl --verbose --request DELETE http://localhost:8080/notes/123
 echo -e "\n-----------------------------------------------"
+
+echo -e "\n\nTesting GET /logout"
+curl --verbose http://localhost:8080/logout
+echo -e "\n-----------------------------------------------"
