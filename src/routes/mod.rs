@@ -15,7 +15,7 @@ use mongodb::{
 };
 use tower_http::{
     cors::{AllowHeaders, AllowOrigin, CorsLayer},
-    trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
 
@@ -41,7 +41,7 @@ pub async fn construct_state() -> Result<ServerState, Box<dyn Error>> {
         ClientOptions::parse_with_resolver_config(&mongo_uri, ResolverConfig::cloudflare()).await?;
     let client = Client::with_options(options)?;
     let db = client.database("test");
-    println!("Connected to DB Successfully!");
+    tracing::info!("Connected to DB Successfully!");
 
     Ok(ServerState { db })
 }
@@ -60,6 +60,7 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
         .allow_credentials(true);
 
     let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
         .on_request(DefaultOnRequest::new().level(Level::INFO))
         .on_response(DefaultOnResponse::new().level(Level::INFO))
         .on_failure(DefaultOnFailure::new().level(Level::ERROR));

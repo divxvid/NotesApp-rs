@@ -51,7 +51,7 @@ pub async fn handle_signup(
     match db_result {
         Ok(insert_result) => {
             let id = insert_result.inserted_id;
-            println!("Record Inserted with ID: {}", id);
+            tracing::trace!("Record Inserted with ID: {}", id);
             let resp = UserResponse {
                 message: format!("Created new user in DB with ID: {}", id),
                 username: body.username,
@@ -59,7 +59,7 @@ pub async fn handle_signup(
             Ok(Json(resp))
         }
         Err(err) => {
-            eprintln!("An Error Occured at handle_signup:\n {:?}", err);
+            tracing::error!("An Error Occured at handle_signup:\n {:?}", err);
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
@@ -80,7 +80,9 @@ pub async fn handle_login(
         .find_one(doc! { "username": body.username.clone() }, None)
         .await
         .map_err(|err| {
-            eprint!("Error encountered in reading Collection userpasses from /login\n{err}",);
+            tracing::error!(
+                "Error encountered in reading Collection userpasses from /login\n{err}",
+            );
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
@@ -100,7 +102,7 @@ pub async fn handle_login(
     }
 
     let jwt_token = get_token(&body.username).map_err(|err| {
-        eprintln!("Error occured at JWT creation.\n{err}");
+        tracing::error!("Error occured at JWT creation.\n{err}");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -172,7 +174,7 @@ async fn validate_signup_request(
             None => Ok(()),
         },
         Err(err) => {
-            eprintln!("An Error Occured at handle_signup:\n {:?}", err);
+            tracing::error!("An Error Occured at handle_signup:\n {:?}", err);
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
