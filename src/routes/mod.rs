@@ -13,7 +13,7 @@ use mongodb::{
     options::{ClientOptions, ResolverConfig},
     Client,
 };
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
 
 use note_routes::*;
 use root_route::root_route;
@@ -52,6 +52,7 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
             Method::HEAD,
         ])
         .allow_origin(AllowOrigin::mirror_request())
+        .allow_headers(AllowHeaders::mirror_request())
         .allow_credentials(true);
 
     let state = construct_state().await?;
