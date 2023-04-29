@@ -15,7 +15,10 @@ pub async fn verify_auth<B>(
     let jwt_token = cookie_jar
         .get("access_token")
         .map(|c| c.value().to_owned())
-        .unwrap_or("nope".to_owned());
+        .unwrap_or_else(|| {
+            tracing::warn!("[Auth Middleware] JWT token not found in the request cookies JWT token not found in the request cookies.");
+            "nope".to_owned()
+        });
 
     let claims = validate_token(&jwt_token).map_err(|_| StatusCode::UNAUTHORIZED)?;
     request.extensions_mut().insert(claims);
