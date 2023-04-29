@@ -6,8 +6,8 @@ use std::error::Error;
 
 const EXPIRY_AFTER: usize = 60 * 60; //60 minutes in seconds
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JWTClaims {
     username: String,
     //mandatory field exp to denote the expiry of the token (UTC Timestamp)
     exp: usize,
@@ -16,7 +16,7 @@ struct Claims {
 pub fn get_token(username: impl Into<String>) -> Result<String, Box<dyn Error>> {
     let secret_token = std::env::var("ACCESS_TOKEN").expect("ACCESS_TOKEN env var not found!");
 
-    let my_claims = Claims {
+    let my_claims = JWTClaims {
         username: username.into(),
         exp: (get_current_timestamp() as usize) + EXPIRY_AFTER,
     };
@@ -30,16 +30,14 @@ pub fn get_token(username: impl Into<String>) -> Result<String, Box<dyn Error>> 
     Ok(token)
 }
 
-pub fn validate_token(token: &str) -> Result<String, Box<dyn Error>> {
+pub fn validate_token(token: &str) -> Result<JWTClaims, Box<dyn Error>> {
     let secret_token = std::env::var("ACCESS_TOKEN").expect("ACCESS_TOKEN env var not found!");
 
-    let token_data = decode::<Claims>(
+    let token_data = decode::<JWTClaims>(
         &token,
         &DecodingKey::from_secret(secret_token.as_bytes()),
         &Validation::default(),
     )?;
 
-    let username = token_data.claims.username;
-
-    Ok(username)
+    Ok(token_data.claims)
 }

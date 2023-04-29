@@ -2,7 +2,7 @@ use axum::{
     extract::State,
     http::{header::SET_COOKIE, HeaderMap, Response, StatusCode},
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use axum_extra::extract::{cookie::Cookie, CookieJar};
 use bson::doc;
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use time::Duration;
 
 use crate::{
-    auth::{get_token, validate_token},
+    auth::{get_token, validate_token, JWTClaims},
     data_models::UserPassModel,
     server_state::ServerState,
 };
@@ -126,14 +126,15 @@ pub async fn handle_login(
     Ok(response)
 }
 
-pub async fn handle_logout(headers: HeaderMap) -> Result<Response<String>, StatusCode> {
+pub async fn handle_logout(
+    headers: HeaderMap,
+    Extension(claims): Extension<JWTClaims>,
+) -> Result<Response<String>, StatusCode> {
     let cookie_jar = CookieJar::from_headers(&headers);
     let jwt_token = cookie_jar
         .get("access_token")
         .map(|c| c.value().to_owned())
         .unwrap_or("nope".to_owned());
-
-    validate_token(&jwt_token).map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     //clearing the cookie by settings it's age to 0
     let cookie = Cookie::build("access_token", jwt_token)

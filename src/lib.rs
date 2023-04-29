@@ -1,5 +1,6 @@
 mod auth;
 mod data_models;
+mod middlewares;
 mod routes;
 mod server_state;
 
