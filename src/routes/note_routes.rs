@@ -1,5 +1,15 @@
-use axum::{extract::Path, Json};
+use std::str::FromStr;
+
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Extension, Json,
+};
+use bson::{doc, oid::ObjectId};
+use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
+
+use crate::{auth::JWTClaims, data_models::NoteModel, server_state::ServerState};
 
 #[derive(Serialize, Deserialize)]
 pub struct Note {
@@ -14,24 +24,102 @@ pub struct NoteCreateResponse {
     note: String,
 }
 
-pub async fn get_note_with_id(Path(id): Path<String>) -> String {
-    format!("Hello from get note with id: {}", id)
+#[derive(Serialize, Deserialize)]
+pub struct NoteFromDB {
+    _id: ObjectId,
+    username: String,
+    title: String,
+    note: String,
 }
 
-pub async fn delete_note_with_id(Path(id): Path<String>) -> String {
-    format!("Hello from delete note with id: {}", id)
+#[derive(Serialize)]
+pub struct NoteDTO {
+    _id: String,
+    username: String,
+    title: String,
+    note: String,
 }
 
-pub async fn get_all_notes() -> &'static str {
-    "Hello from get all notes"
+pub async fn get_note_with_id(
+    Path(id): Path<String>,
+    State(state): State<ServerState>,
+) -> Result<Json<NoteDTO>, StatusCode> {
+    let collection = state.db.collection::<NoteFromDB>("notes");
+    let id = ObjectId::from_str(&id).unwrap();
+    let note = collection
+        .find_one(doc! { "_id": id }, None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if let Some(note) = note {
+        Ok(Json(NoteDTO {
+            _id: note._id.to_string(),
+            username: note.username,
+            title: note.title,
+            note: note.note,
+        }))
+    } else {
+        Err(StatusCode::NOT_FOUND)
+    }
 }
 
-pub async fn add_note(Json(body): Json<Note>) -> Json<NoteCreateResponse> {
-    let resp = NoteCreateResponse {
-        message: "Add Note from Axum".to_owned(),
+pub async fn delete_note_with_id(
+    Path(id): Path<String>,
+    State(state): State<ServerState>,
+) -> Result<StatusCode, StatusCode> {
+    let collection = state.db.collection::<NoteFromDB>("notes");
+    let id = ObjectId::from_str(&id).unwrap();
+    collection
+        .delete_one(doc! { "_id": id }, None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::OK)
+}
+
+pub async fn get_all_notes(
+    Extension(claims): Extension<JWTClaims>,
+    State(state): State<ServerState>,
+) -> Result<Json<Vec<NoteDTO>>, StatusCode> {
+    let collection = state.db.collection::<NoteFromDB>("notes");
+    let mut cursor = collection
+        .find(doc! { "username": claims.username }, None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut notes = vec![];
+    while let Some(note) = cursor
+        .try_next()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    {
+        notes.push(NoteDTO {
+            _id: note._id.to_string(),
+            username: note.username,
+            title: note.title,
+            note: note.note,
+        });
+    }
+
+    Ok(Json(notes))
+}
+
+pub async fn add_note(
+    State(state): State<ServerState>,
+    Extension(claims): Extension<JWTClaims>,
+    Json(body): Json<Note>,
+) -> Result<StatusCode, StatusCode> {
+    let collection = state.db.collection::<NoteModel>("notes");
+    let new_note = NoteModel {
+        username: claims.username,
         title: body.title,
         note: body.note,
     };
 
-    Json(resp)
+    collection
+        .insert_one(new_note, None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::CREATED)
 }

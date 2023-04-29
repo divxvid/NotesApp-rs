@@ -8,7 +8,7 @@ const EXPIRY_AFTER: usize = 60 * 60; //60 minutes in seconds
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct JWTClaims {
-    username: String,
+    pub username: String,
     //mandatory field exp to denote the expiry of the token (UTC Timestamp)
     exp: usize,
 }
