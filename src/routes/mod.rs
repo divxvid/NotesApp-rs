@@ -5,7 +5,6 @@ mod user_routes;
 use std::error::Error;
 
 use axum::{
-    http::Method,
     middleware,
     routing::{get, post},
     Router,
@@ -14,17 +13,15 @@ use mongodb::{
     options::{ClientOptions, ResolverConfig},
     Client,
 };
-use tower_http::{
-    cors::{AllowHeaders, AllowOrigin, CorsLayer},
-    trace::{DefaultMakeSpan, DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
-};
-use tracing::Level;
 
 use note_routes::*;
 use root_route::root_route;
 use user_routes::*;
 
-use crate::{middlewares::verify_auth::verify_auth, server_state::ServerState};
+use crate::{
+    middlewares::{cors::cors_layer, tracing::tracing_layer, verify_auth::verify_auth},
+    server_state::ServerState,
+};
 
 pub async fn construct_state() -> Result<ServerState, Box<dyn Error>> {
     let mongo_username = std::env::var("MONGO_USER").expect("Mongo User not found in env vars");
@@ -48,24 +45,6 @@ pub async fn construct_state() -> Result<ServerState, Box<dyn Error>> {
 }
 
 pub async fn get_router() -> Result<Router, Box<dyn Error>> {
-    let cors_layer = CorsLayer::new()
-        .allow_methods([
-            Method::GET,
-            Method::POST,
-            Method::DELETE,
-            Method::OPTIONS,
-            Method::HEAD,
-        ])
-        .allow_origin(AllowOrigin::mirror_request())
-        .allow_headers(AllowHeaders::mirror_request())
-        .allow_credentials(true);
-
-    let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-        .on_request(DefaultOnRequest::new().level(Level::INFO))
-        .on_response(DefaultOnResponse::new().level(Level::INFO))
-        .on_failure(DefaultOnFailure::new().level(Level::ERROR));
-
     let state = construct_state().await?;
 
     let router = Router::new()
@@ -80,8 +59,8 @@ pub async fn get_router() -> Result<Router, Box<dyn Error>> {
         .route("/", get(root_route))
         .route("/signup", post(handle_signup))
         .route("/login", post(handle_login))
-        .layer(trace_layer)
-        .layer(cors_layer)
+        .layer(tracing_layer())
+        .layer(cors_layer())
         .with_state(state);
 
     Ok(router)
