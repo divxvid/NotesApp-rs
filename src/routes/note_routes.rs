@@ -40,6 +40,11 @@ pub struct NoteDTO {
     note: String,
 }
 
+#[derive(Serialize)]
+pub struct ErrorMessage {
+    message: String,
+}
+
 pub async fn get_note_with_id(
     Path(id): Path<String>,
     State(state): State<ServerState>,
@@ -108,7 +113,10 @@ pub async fn add_note(
     State(state): State<ServerState>,
     Extension(claims): Extension<JWTClaims>,
     Json(body): Json<Note>,
-) -> Result<StatusCode, StatusCode> {
+) -> Result<StatusCode, (StatusCode, Json<ErrorMessage>)> {
+    body.validate()
+        .map_err(|err| (StatusCode::BAD_REQUEST, Json(ErrorMessage { message: err })))?;
+
     let collection = state.db.collection::<NoteModel>("notes");
     let new_note = NoteModel {
         username: claims.username,
@@ -116,10 +124,24 @@ pub async fn add_note(
         note: body.note,
     };
 
-    collection
-        .insert_one(new_note, None)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    collection.insert_one(new_note, None).await.map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorMessage {
+                message: "could not insert note!".to_owned(),
+            }),
+        )
+    })?;
 
     Ok(StatusCode::CREATED)
+}
+
+impl Note {
+    fn validate(&self) -> Result<(), String> {
+        if self.title.is_empty() {
+            Err("Title cannot be empty".to_owned())
+        } else {
+            Ok(())
+        }
+    }
 }
