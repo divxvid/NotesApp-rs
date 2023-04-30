@@ -77,27 +77,26 @@ if __name__ == "__main__":
     username = "TestUsername1"
     password = "TestPassword1"
     test_root()
-    # test_signup(username, password)
+    test_signup(username, password)
     test_login(username, password)
 
-    # note1 = {"title": "Title1", "note": "Test Note 1"}
-    # note2 = {"title": "Title2", "note": "Test Note 2"}
-    # test_add_note(note1)
-    # test_add_note(note2)
-    # notes = test_get_all_notes()
-    # print(notes)
-    # ids = []
-    # for note in notes:
-    #     test_get_note(note["_id"])
-    #     ids.append(note["_id"])
-    #
-    # for id in ids:
-    #     test_delete_note(id)
-    #
-    # test_get_all_notes()
-    #
+    note1 = {"title": "Title1", "note": "Test Note 1"}
+    note2 = {"title": "Title2", "note": "Test Note 2"}
+    test_add_note(note1)
+    test_add_note(note2)
+    notes = test_get_all_notes()
+    print(notes)
+    ids = []
+    for note in notes:
+        test_get_note(note["_id"])
+        ids.append(note["_id"])
+
+    for id in ids:
+        test_delete_note(id)
+
+    test_get_all_notes()
+
     test_logout()
     test_logout()
-    # test_get_all_notes()
 
 

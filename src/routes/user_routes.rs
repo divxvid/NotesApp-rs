@@ -2,7 +2,7 @@ use axum::{
     extract::State,
     http::{header::SET_COOKIE, HeaderMap, Response, StatusCode},
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use axum_extra::extract::{cookie::Cookie, CookieJar};
 use bson::doc;
@@ -10,11 +10,7 @@ use mongodb::Collection;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 
-use crate::{
-    auth::{get_token, validate_token, JWTClaims},
-    data_models::UserPassModel,
-    server_state::ServerState,
-};
+use crate::{auth::get_token, data_models::UserPassModel, server_state::ServerState};
 
 #[derive(Deserialize)]
 pub struct UserInformation {
@@ -126,10 +122,7 @@ pub async fn handle_login(
     Ok(response)
 }
 
-pub async fn handle_logout(
-    headers: HeaderMap,
-    Extension(claims): Extension<JWTClaims>,
-) -> Result<Response<String>, StatusCode> {
+pub async fn handle_logout(headers: HeaderMap) -> Result<Response<String>, StatusCode> {
     let cookie_jar = CookieJar::from_headers(&headers);
     let jwt_token = cookie_jar
         .get("access_token")
